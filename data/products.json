@@ -1,0 +1,16 @@
+[
+  {
+    "id": "0.12765074209878402",
+    "title": "Test",
+    "price": "25",
+    "imageUrl": "Test",
+    "description": "Test                \r\n            "
+  },
+  {
+    "id": "0.7550676345540397",
+    "title": "Second book",
+    "price": "25",
+    "imageUrl": "Second book",
+    "description": "Second book                \r\n            "
+  }
+]
