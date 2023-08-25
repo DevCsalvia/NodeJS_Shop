@@ -5,6 +5,10 @@ const bodyParser = require("body-parser");
 
 const errorController = require("./controllers/error");
 
+const postgresql = require("./util/database");
+
+postgresql();
+
 const app = express();
 
 app.set("view engine", "ejs");
