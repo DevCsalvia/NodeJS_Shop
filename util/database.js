@@ -1,4 +1,4 @@
-const { Pool } = require("pg");
+const Sequelize = require("sequelize");
 
 const credentials = {
   user: "postgres",
@@ -8,27 +8,9 @@ const credentials = {
   port: 5432,
 };
 
-module.exports = (callback = null) => {
-  // NOTE: PostgreSQL creates a superuser by default on localhost using the OS username.
-  const pool = new Pool(credentials);
-
-  const connection = {
-    pool,
-    query: (...args) => {
-      return pool.connect().then((client) => {
-        return client.query(...args).then((res) => {
-          client.release();
-          return res.rows;
-        });
-      });
-    },
-  };
-
-  process.postgresql = connection;
-
-  if (callback) {
-    callback(connection);
-  }
-
-  return connection;
-};
+module.exports = new Sequelize(
+  credentials.database,
+  credentials.user,
+  credentials.password,
+  { dialect: "postgresql", host: credentials.host },
+);

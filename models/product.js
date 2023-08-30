@@ -1,31 +1,27 @@
-module.exports = class Product {
-  constructor(id, title, imageUrl, price, description) {
-    this.id = id;
-    this.title = title;
-    this.price = price;
-    this.imageUrl = imageUrl;
-    this.description = description;
-  }
+const Sequelize = require("sequelize");
 
-  static fetchAll(cb) {
-    return process.postgresql.query("Select * from products");
-  }
+const sequelize = require("../util/database");
 
-  static findById(id) {
-    return process.postgresql.query(
-      `Select * from products where products.id = $1`,
-      [id],
-    );
-  }
+const Product = sequelize.define("product", {
+  id: {
+    type: Sequelize.INTEGER,
+    autoIncrement: true,
+    allowNull: false,
+    primaryKey: true,
+  },
+  title: Sequelize.STRING,
+  price: {
+    type: Sequelize.DOUBLE,
+    allowNull: false,
+  },
+  imageUrl: {
+    type: Sequelize.STRING,
+    allowNull: false,
+  },
+  description: {
+    type: Sequelize.STRING,
+    allowNull: false,
+  },
+});
 
-  static deleteById(id) {}
-
-  save() {
-    return process.postgresql.query(
-      `INSERT INTO "products" ("title", "price", "imageUrl", "description") 
-      values ($1, $2, $3, $4)
-      ON CONFLICT DO NOTHING;`,
-      [this.title, this.price, this.imageUrl, this.description],
-    );
-  }
-};
+module.exports = Product;
