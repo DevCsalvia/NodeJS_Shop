@@ -10,9 +10,10 @@ exports.getAddProduct = (req, res, next) => {
 
 exports.postAddProduct = (req, res, next) => {
   const { title, imageUrl, price, description } = req.body;
+
   const product = new Product(null, title, imageUrl, price, description);
   product
-    .save()
+    .save(req.session.user.id)
     .then(() => {
       res.redirect("/");
     })
@@ -28,7 +29,8 @@ exports.getEditProduct = (req, res, next) => {
 
   const prodId = req.params.productId;
 
-  Product.findById(prodId, (product) => {
+  Product.findById(prodId).then((rows) => {
+    const product = rows[0];
     if (!product) {
       return res.redirect("/");
     }
@@ -53,26 +55,35 @@ exports.postEditProduct = (req, res, next) => {
     prodId,
     updatedTitle,
     updatedImageUrl,
-    updatedDesc,
     updatedPrice,
+    updatedDesc,
   );
 
-  updatedProduct.save();
-  res.redirect("/admin/products");
-};
+  Product.findById(prodId).then((rows) => {
+    const productToUpdate = rows[0];
+    if (productToUpdate?.userId !== req.session.user.id) {
+      return res.redirect("/");
+    }
 
-exports.getProducts = (req, res, next) => {
-  Product.fetchAll((products) => {
-    res.render("admin/products", {
-      prods: products,
-      pageTitle: "Admin Products",
-      path: "/admin/products",
+    updatedProduct.updateProduct().then(() => {
+      res.redirect("/admin/products");
     });
   });
 };
 
-exports.postDeleteProduct = (req, res, next) => {
+exports.getProducts = async (req, res, next) => {
+  const rows = await Product.fetchUserProducts(req.session.user.id);
+
+  res.render("admin/products", {
+    prods: rows,
+    pageTitle: "Admin Products",
+    path: "/admin/products",
+    isAuthenticated: req.session.isLoggedIn,
+  });
+};
+
+exports.postDeleteProduct = async (req, res, next) => {
   const prodId = req.body.productId;
-  Product.deleteById(prodId);
+  await Product.deleteById(prodId, req.session.user.id);
   res.redirect("/admin/products");
 };

@@ -1,82 +1,56 @@
-const fs = require("fs");
-const path = require("path");
-
-const p = path.join(
-  path.dirname(process.mainModule.filename),
-  "data",
-  "cart.json",
-);
-
 module.exports = class Cart {
-  static addProduct(id, productPrice) {
-    // Fetch previous cart
-    fs.readFile(p, (err, fileContent) => {
-      let cart = { products: [], totalPrice: 0 };
-
-      if (!err) {
-        cart = JSON.parse(fileContent);
-      }
-      // Analyze the cart => Find existing product
-      const existingProductIdx = cart.products?.findIndex(
-        (prod) => prod.id === id,
-      );
-
-      const existingProduct = cart.products?.[existingProductIdx];
-
-      let updatedProduct;
-
-      // Add new product / increase quantity
-      if (existingProduct) {
-        updatedProduct = { ...existingProduct };
-        updatedProduct.qty = updatedProduct.qty + 1;
-        cart.products[existingProductIdx] = updatedProduct;
-      } else {
-        updatedProduct = { id: id, qty: 1 };
-        cart.products = [...(cart.products || []), updatedProduct];
-      }
-
-      cart.totalPrice = cart.totalPrice + +productPrice;
-      fs.writeFile(p, JSON.stringify(cart), (err) => {
-        console.log(err);
-      });
-    });
+  static createCart(userId) {
+    return process.postgresql.query("Insert into cart (user_id) values ($1)", [
+      userId,
+    ]);
   }
 
-  static getCart(cb) {
-    fs.readFile(p, (err, fileContent) => {
-      const cart = JSON.parse(fileContent);
-      if (err) {
-        cb(null);
-      } else {
-        cb(cart);
-      }
-    });
+  static async getCurrentUserCart(userId) {
+    const rows = await process.postgresql.query(
+      "select * from cart where user_id = $1",
+      [userId],
+    );
+
+    return rows[0];
   }
 
-  static deleteProduct(id, productPrice) {
-    fs.readFile(p, (err, fileContent) => {
-      if (err) return;
+  static async getAllCartItems(userId) {
+    const { id: cartId } = await Cart.getCurrentUserCart(userId);
 
-      const cart = JSON.parse(fileContent) || {
-        products: [],
-        totalPrice: 0,
-      };
+    return await process.postgresql.query(
+      "Select * from cart_item join products on products.id = cart_item.product_id where cart_id = $1",
+      [cartId],
+    );
+  }
 
-      const updatedCart = { ...cart };
-      const product = updatedCart.products.find((prod) => prod.id === id);
-      if (!product) {
-        return;
-      }
-      const productQty = product.qty;
-      updatedCart.products = updatedCart.products.filter(
-        (prod) => prod.id !== id,
-      );
-      updatedCart.totalPrice =
-        updatedCart.totalPrice - productPrice * productQty;
+  static async getCartItem(cartId, productId) {
+    const rows = await process.postgresql.query(
+      "select * from cart_item where cart_id = $1 and product_id = $2",
+      [cartId, productId],
+    );
 
-      fs.writeFile(p, JSON.stringify(updatedCart), (err) => {
-        console.log("DELETE CART ERR", err);
-      });
-    });
+    return rows[0];
+  }
+
+  static async addProductToCart(prodId, userId) {
+    const cart = await this.getCurrentUserCart(userId);
+
+    const cart_item = await this.getCartItem(cart.id, prodId);
+
+    return process.postgresql.query(
+      cart_item
+        ? "update cart_item set quantity = quantity + 1 where cart_id = $1 and product_id = $2"
+        : "insert into cart_item (cart_id, product_id, quantity) values ($1, $2, 1)",
+      [cart.id, prodId],
+    );
+  }
+
+  static async deleteCartItem(prodId, userId) {
+    const cart = await this.getCurrentUserCart(userId);
+
+    return await process.postgresql.query(
+      "delete from cart_item where cart_id = $1 and product_id = $2",
+      [cart.id, prodId],
+    );
   }
 };

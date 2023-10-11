@@ -1,4 +1,5 @@
 const { Pool } = require("pg");
+const toCamelCase = require("./to-camel-case");
 
 const credentials = {
   user: "postgres",
@@ -18,7 +19,7 @@ module.exports = (callback = null) => {
       return pool.connect().then((client) => {
         return client.query(...args).then((res) => {
           client.release();
-          return res.rows;
+          return toCamelCase(res.rows);
         });
       });
     },
