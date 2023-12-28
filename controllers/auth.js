@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/user");
 const Cart = require("../models/cart");
 const crypto = require("crypto");
+const { validationResult } = require("express-validator");
 
 const transporter = require("../util/mailer");
 
@@ -16,6 +17,10 @@ exports.getLogin = (req, res, next) => {
     path: "/login",
     pageTitle: "Login",
     errorMessage: message,
+    oldInput: {
+      email: "",
+      password: "",
+    },
   });
 };
 
@@ -25,12 +30,17 @@ exports.getSignup = (req, res, next) => {
   if (message.length > 0) {
     message = message[0];
   } else message = null;
-  console.log(message);
 
   res.render("auth/signup", {
     path: "/signup",
     pageTitle: "Signup",
     errorMessage: message,
+    oldInput: {
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
+    validationErrors: [],
   });
 };
 
@@ -38,8 +48,18 @@ exports.postLogin = (req, res, next) => {
   const email = req.body.email;
   const password = req.body.password;
 
-  process.postgresql
-    .query("Select * from users where email = $1", [email])
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    return res.status(422).render("auth/login", {
+      path: "/login",
+      pageTitle: "Login",
+      errorMessage: errors.array()[0].msg,
+      oldInput: { email, password },
+    });
+  }
+
+  User.getUserByEmail(email)
     .then((rows) => {
       const user = rows[0];
 
@@ -70,17 +90,27 @@ exports.postLogin = (req, res, next) => {
 };
 
 exports.postSignup = (req, res, next) => {
-  User.signUp(req.body)
-    .then((rows) => {
-      const createdUser = rows[0];
-      Cart.createCart(createdUser.id);
-      res.redirect("/login");
-    })
-    .catch((err) => {
-      console.log(err);
-      req.flash("error", "E-Mail exists already, please pick a different one.");
-      res.redirect("/signup");
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    return res.status(422).render("auth/signup", {
+      path: "/signup",
+      pageTitle: "Signup",
+      errorMessage: errors.array()[0].msg,
+      oldInput: {
+        email: req.body.email,
+        password: req.body.password,
+        confirmPassword: req.body.confirmPassword,
+      },
+      validationErrors: errors.array(),
     });
+  }
+
+  User.signUp(req.body).then((rows) => {
+    const createdUser = rows[0];
+    Cart.createCart(createdUser.id);
+    res.redirect("/login");
+  });
 };
 
 exports.postLogout = (req, res, next) => {
